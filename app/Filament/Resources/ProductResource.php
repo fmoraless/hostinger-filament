@@ -13,6 +13,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Str;
 
 class ProductResource extends Resource
 {
@@ -33,17 +34,45 @@ class ProductResource extends Resource
                 ->schema([
                     Forms\Components\Section::make()
                         ->schema([
-                            Forms\Components\TextInput::make('name'),
-                            Forms\Components\TextInput::make('slug'),
+                            Forms\Components\TextInput::make('name')
+                                ->required()
+                                ->live(onBlur: true)
+                                ->unique()
+                                ->afterStateUpdated(function(string $operation, $state, Forms\Set $set) {
+                                    if ($operation !== 'create') {
+                                        return;
+                                    }
+                                    $set('slug', Str::slug($state));
+                                })
+                            ,
+                            Forms\Components\TextInput::make('slug')
+                                ->disabled()
+                                ->dehydrated()
+                                ->required()
+                                ->unique(Product::class, 'slug', ignoreRecord: true )
+                            ,
                             Forms\Components\MarkdownEditor::make('description')
                                 ->columnSpan('full')
                     ])->columns(2),
 
                     Forms\Components\Section::make('Pricing & Inventory')
                         ->schema([
-                            Forms\Components\TextInput::make('sku'),
-                            Forms\Components\TextInput::make('price'),
-                            Forms\Components\TextInput::make('quantity'),
+                            Forms\Components\TextInput::make('sku')
+                                ->label("SKU (Stock Keeping Unit)")
+                                ->unique()
+                                ->required()
+                            ,
+                            Forms\Components\TextInput::make('price')
+                                ->numeric()
+                                ->rules('regex:/^\d{1,6}(\.\d{0,2})?$/')
+                                ->required()
+                            ,
+                            Forms\Components\TextInput::make('quantity')
+                                ->numeric()
+                                ->minValue(0)
+                                ->maxValue(100)
+                                ->required()
+                            ,
                             Forms\Components\Select::make('type')
                                 ->options([
                                     'downloadable' => ProductTypeEnum::DOWNLOADABLE->value,
@@ -57,13 +86,26 @@ class ProductResource extends Resource
                     ->schema([
                         Forms\Components\Section::make('Status')
                             ->schema([
-                                Forms\Components\Toggle::make('is_visible'),
-                                Forms\Components\Toggle::make('is_featured'),
+                                Forms\Components\Toggle::make('is_visible')
+                                    ->label('Visibility')
+                                    ->helperText('Enable or disable product visibility')
+                                    ->default(true)
+                                ,
+                                Forms\Components\Toggle::make('is_featured')
+                                    ->label('Featured')
+                                    ->helperText('Enable or disable product featured status')
+                                ,
                                 Forms\Components\DatePicker::make('published_at')
+                                    ->label('Availability')
+                                    ->default(now())
                             ]),
                         Forms\Components\Section::make('Image')
                             ->schema([
                                 Forms\Components\FileUpload::make('image')
+                                    ->directory('form-attachments')
+                                    ->preserveFilenames()
+                                    ->image()
+                                    ->imageEditor()
                             ])->collapsible(),
 
                         Forms\Components\Section::make('Associations')
