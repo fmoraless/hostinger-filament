@@ -150,11 +150,17 @@ class ProductResource extends Resource
                     ->date()
                     ->sortable()
                 ,
-                Tables\Columns\TextColumn::make('type'),
-
+                Tables\Columns\TextColumn::make('type')
             ])
             ->filters([
-                //
+                Tables\Filters\TernaryFilter::make('is_visible')
+                    ->label('Visibility')
+                    ->boolean()
+                    ->trueLabel('Only Visible Products')
+                    ->falseLabel('Only Hidden Products')
+                    ->native(false),
+                Tables\Filters\SelectFilter::make('brand')
+                    ->relationship('brand', 'name')
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
